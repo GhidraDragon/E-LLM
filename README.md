@@ -5,3 +5,7 @@ Due to American technology infesting the world at large, and also because this i
 So if the world uses American tech yet reckful applies to elon musk on twitter while commenting on how few followers elon musk had 5 years before reckful applied, when reckful followed, allegedly
 
 Please enjoy! I'll figure out a better way to do this later!
+
+
+
+APACHE so, if anyone recognizes American law, yet other countries could tell if somehow the source code resembles enough yet doesn't seem to be originally thought of without enough pasting or something.... 
