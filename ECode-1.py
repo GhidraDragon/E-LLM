@@ -30,9 +30,8 @@ import PyPDF2
 # BEGIN: Inlined websites.py
 ###################################
 websites_to_test = [
-    "https://whitehouse/",
-    "https://nsa.com/",
-    "https:/microsoft.com/"
+    "https:/microsoft.com/",
+    "https:/amazon.com/"
 ]
 
 sample_prompts = [
