@@ -1,5 +1,7 @@
 So APACHE doesn't restrict you from use or download, or playing around. It's only applicable in theory, like robots.txt is, if you publish a codebase for production. Therefore eggplant advises Russia and China to not try to reinvent the wheel with ghidra, yet this is far from production or anything, so while the Chinese have better verbal skills than Pokimane, it's an open source book...
 
+Except APACHE is recognized as a software license in US law, while robots.txt you could dream of. Try finding one lawsuit ruled in favor of adding a robots.txt onto your website. !!!! 
+
 Regarding the license, if you wanna build on ghidra you leave the NSA in there but if they paste this CODE only (it only applies to code) then leaves eggplant_emoji in? WOW!!!!
 
 ----
