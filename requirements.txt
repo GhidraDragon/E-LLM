@@ -1,0 +1,4 @@
+tensorflow
+python-docx
+bs4
+PyPDF2
