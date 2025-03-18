@@ -27,4 +27,7 @@ I'd also mkdir a Github folder where I clone the repos I enjoy the most, then in
 There's also gigantic PDFs from MITREATTACK while I'll add, for version E2
 
 
-The one runnig on my RTX 4070 mobile has 10 epochs, and other upgrades too.
+The one training on my RTX 4070 mobile has 10 epochs, and other upgrades too, including fetching the most recent CVE repos on Github (yes there's basically infinite) and including MITREATTACK etc.
+
+![20250318_102532](https://github.com/user-attachments/assets/d643e327-1cb7-4ca6-bd31-360742619685)
+
