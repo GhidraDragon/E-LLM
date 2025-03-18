@@ -16,7 +16,15 @@ This one has 3 epochs so it runs comfortably on an RTX 2070 Max-Q Design (nerfed
 
 ![20250318_101626](https://github.com/user-attachments/assets/bb72818d-1574-4b3a-a5c9-4a403c5f6948)
 
-If you're missing the MITRE CVE
+If you're missing the MITRE CVE folder cvelistV5, git clone https://github.com/CVEProject/cvelistV5.git
+
+If you're missing the exploitdb folder, git clone https://gitlab.com/exploit-database/exploitdb.git
+
+There's either a pentests folder where you place your own insights or exploits for training
+
+I'd also mkdir a Github folder where I clone the repos I enjoy the most, then include those in training, which I'll add for version E2
+
+There's also gigantic PDFs from MITREATTACK while I'll add, for version E2
 
 
 The one runnig on my RTX 4070 mobile has 10 epochs, and other upgrades too.
