@@ -11,3 +11,9 @@ python3 -m pip install 'tensorflow[and-cuda]'
 https://www.tensorflow.org/install/pip
 
 python3 -m pip install -r requirements.txt
+
+This one has 3 epochs so it runs comfortably on an RTX 2070 mobile Max-Q
+
+![20250318_101626](https://github.com/user-attachments/assets/bb72818d-1574-4b3a-a5c9-4a403c5f6948)
+
+The one runnig on my RTX 4070 mobile has 10 epochs, and other upgrades too.
