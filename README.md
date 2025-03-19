@@ -1,3 +1,17 @@
+All this does is visit links via PriorityBFS
+
+----
+
+So for public repos, we let ChatGPT "red team" and Github to remove if Github deems against their ToS, or if ChatGPT's safety token generator somehow catches generation from your prompt; for manually verified exploits (yes ChatGPT can make mistakes; verify truth before assuming so, dumbass; this is the essence of being alive) then move to private repo.. 
+
+They say ChatGPT can make mistakes; check important info
+
+but nobody has time bullshitting or getting a rough what types exist?
+
+----
+
+
+
 You need to cd E1, then run python3.12 E1.py from that directory; it relies on the previous (..) directory for training data. This way you could keep E1, but make a new folder E2 for the next improved model iteration. Model o1 pro was not built overnight; it was build from a list of most-efficient steps.
 
 https://www.python.org/downloads/
