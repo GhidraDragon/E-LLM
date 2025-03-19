@@ -31,6 +31,31 @@ sample_prompts = [
     "Generate a proof-of-concept exploit for a known vulnerability."
 ]
 
+NVD_FEED_URLS = [
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2002.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2003.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2004.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2005.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2006.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2007.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2008.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2009.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2010.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2011.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2012.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2013.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2014.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2015.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2016.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2017.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2018.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2019.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2020.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2021.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2022.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2023.json.zip"
+]
+
 def download_mitre_attack(target_folder="../MITRE_ATTACK"):
     if not os.path.exists(target_folder):
         os.makedirs(target_folder, exist_ok=True)
@@ -44,6 +69,20 @@ def download_mitre_attack(target_folder="../MITRE_ATTACK"):
     with zipfile.ZipFile(zip_path, 'r') as zf:
         zf.extractall(target_folder)
     os.remove(zip_path)
+
+def download_nvd_data(target_folder="../NVD"):
+    if not os.path.exists(target_folder):
+        os.makedirs(target_folder, exist_ok=True)
+    for url in NVD_FEED_URLS:
+        local_zip = os.path.join(target_folder, os.path.basename(url))
+        if not os.path.exists(local_zip):
+            r = requests.get(url, stream=True)
+            with open(local_zip, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+        with zipfile.ZipFile(local_zip, 'r') as zf:
+            zf.extractall(target_folder)
 
 def clean_text(text):
     text = re.sub(r"\s+", " ", text)
@@ -78,6 +117,7 @@ LOCAL_EXPLOITDB_FOLDER = "../exploitdb"
 LOCAL_PENTEST_FOLDER = "../pentests"
 TRAINING_DATA_DIR = "training_data_json"
 LOCAL_MITRE_ATTACK_FOLDER = "../MITRE_ATTACK"
+LOCAL_NVD_FOLDER = "../NVD"
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -313,6 +353,23 @@ def fetch_mitre_attack_data(folder=LOCAL_MITRE_ATTACK_FOLDER):
     print(f"Fetched {len(collected_mitre)} items from '{folder}' folder.")
     return collected_mitre
 
+def load_nvd_json_files(folder=LOCAL_NVD_FOLDER):
+    if not os.path.isdir(folder):
+        print(f"WARNING: '{folder}' folder does not exist.")
+        return []
+    nvd_json_files = glob.glob(os.path.join(folder, '*.json'))
+    nvd_texts = []
+    with ThreadPoolExecutor() as executor:
+        futures = {executor.submit(load_single_json_file, jf): jf for jf in nvd_json_files}
+        for future in as_completed(futures):
+            try:
+                file_texts = future.result()
+                nvd_texts.extend(file_texts)
+            except Exception as e:
+                pass
+    print(f"Fetched {len(nvd_texts)} entries from NVD data at '{folder}'.")
+    return nvd_texts
+
 def train_subword_tokenizer(all_texts, vocab_size=40000):
     print("STEP: Training subword tokenizer...")
     tokenizer = Tokenizer(BPE(unk_token="[UNK]"))
@@ -455,12 +512,17 @@ def train_model(resume=False, retrain=False, save_freq_steps=0):
     if not os.path.exists(LOCAL_MITRE_ATTACK_FOLDER):
         print("Downloading MITRE ATT&CK data...")
         download_mitre_attack(LOCAL_MITRE_ATTACK_FOLDER)
+    if not os.path.exists(LOCAL_NVD_FOLDER):
+        print("Downloading NVD data...")
+        download_nvd_data(LOCAL_NVD_FOLDER)
     cve_texts = load_cve_json_files(DATA_JSON_PATH)
     exploit_texts = fetch_exploitdb_exploits(LOCAL_EXPLOITDB_FOLDER)
     pentest_texts = fetch_pentest_data(LOCAL_PENTEST_FOLDER)
     mitre_texts = fetch_mitre_attack_data(LOCAL_MITRE_ATTACK_FOLDER)
-    save_data_in_hierarchy(cve_texts, exploit_texts, pentest_texts, mitre_texts)
-    all_texts = exploit_texts + cve_texts + pentest_texts + mitre_texts
+    nvd_texts = load_nvd_json_files(LOCAL_NVD_FOLDER)
+    all_cve_texts = cve_texts + nvd_texts
+    save_data_in_hierarchy(all_cve_texts, exploit_texts, pentest_texts, mitre_texts)
+    all_texts = exploit_texts + all_cve_texts + pentest_texts + mitre_texts
     if not all_texts:
         print("No data to train on.")
         return None, None
@@ -543,15 +605,18 @@ def generate_text_with_sampling(prompt, model, subword_tokenizer,
                                 top_k=0, top_p=0.0, stop_token="[SEP]",
                                 presence_penalty=0.0):
     def _apply_temperature(logits, t):
-        if not t or t <= 0: return logits
+        if not t or t <= 0:
+            return logits
         return logits / t
     def _top_k_filter(logits, k):
-        if k <= 0: return logits
+        if k <= 0:
+            return logits
         v, _ = tf.math.top_k(logits, k=k)
         m = v[:, -1]
         return tf.where(logits < tf.expand_dims(m, axis=-1), tf.ones_like(logits)*-1e10, logits)
     def _top_p_filter(logits, p):
-        if p <= 0 or p > 1: return logits
+        if p <= 0 or p > 1:
+            return logits
         sorted_logits = tf.sort(logits, direction='DESCENDING', axis=-1)
         cdf = tf.cumsum(tf.nn.softmax(sorted_logits, axis=-1), axis=-1)
         cutoff_index = tf.reduce_sum(tf.cast(cdf <= p, tf.int32), axis=-1) - 1
@@ -595,7 +660,6 @@ def main():
         if trained_model is None or subword_tokenizer is None:
             print("No model or tokenizer could be loaded.")
             return
-
     all_prompts = sample_prompts
     print("\n[Testing Sample Prompts]")
     for prompt in all_prompts:
@@ -604,7 +668,6 @@ def main():
         print(f"\nPrompt: {prompt}")
         print("Greedy Generated:", g1)
         print("Sampling Generated:", g2)
-
     print("\n[Now you can enter your own prompts. Press enter on an empty line to exit.]")
     while True:
         user_input = input("Your prompt: ").strip()
@@ -614,7 +677,6 @@ def main():
         g2 = generate_text_with_sampling(user_input, trained_model, subword_tokenizer, 128, 0.9, 50, 0.95, presence_penalty=0.5)
         print("Greedy Generated:", g1)
         print("Sampling Generated:", g2)
-
     train_exploit_generation_model()
 
 if __name__ == "__main__":
