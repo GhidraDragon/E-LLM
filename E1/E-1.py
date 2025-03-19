@@ -31,7 +31,25 @@ sample_prompts = [
     "Generate a proof-of-concept exploit for a known vulnerability."
 ]
 
-def save_data_in_hierarchy(cve_texts, exploit_texts, pentest_texts):
+def download_mitre_attack(target_folder="../MITRE_ATTACK"):
+    if not os.path.exists(target_folder):
+        os.makedirs(target_folder, exist_ok=True)
+    url = "https://github.com/mitre/cti/archive/refs/heads/master.zip"
+    zip_path = os.path.join(target_folder, "mitre_attack.zip")
+    r = requests.get(url, stream=True)
+    with open(zip_path, 'wb') as f:
+        for chunk in r.iter_content(chunk_size=8192):
+            if chunk:
+                f.write(chunk)
+    with zipfile.ZipFile(zip_path, 'r') as zf:
+        zf.extractall(target_folder)
+    os.remove(zip_path)
+
+def clean_text(text):
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+def save_data_in_hierarchy(cve_texts, exploit_texts, pentest_texts, mitre_texts):
     if not os.path.exists("training_data_json"):
         os.makedirs("training_data_json", exist_ok=True)
     with open(os.path.join("training_data_json", "cve_texts.json"), "w", encoding="utf-8") as f:
@@ -40,6 +58,8 @@ def save_data_in_hierarchy(cve_texts, exploit_texts, pentest_texts):
         json.dump(exploit_texts, f)
     with open(os.path.join("training_data_json", "pentest_texts.json"), "w", encoding="utf-8") as f:
         json.dump(pentest_texts, f)
+    with open(os.path.join("training_data_json", "mitre_texts.json"), "w", encoding="utf-8") as f:
+        json.dump(mitre_texts, f)
 
 def strip_exploitdb_json(folder_path):
     pass
@@ -57,6 +77,7 @@ NUM_LAYERS = 10
 LOCAL_EXPLOITDB_FOLDER = "../exploitdb"
 LOCAL_PENTEST_FOLDER = "../pentests"
 TRAINING_DATA_DIR = "training_data_json"
+LOCAL_MITRE_ATTACK_FOLDER = "../MITRE_ATTACK"
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -75,18 +96,20 @@ def parse_smart(file_path):
     size = os.path.getsize(file_path)
     if size == 0:
         return None
+    if size > 500 * 1024 * 1024:
+        return None
     ext = os.path.splitext(file_path)[1].lower()
     if ext == ".json":
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
-                return json.dumps(json.load(f))
+                return clean_text(json.dumps(json.load(f)))
         except:
             return None
     if ext in [".html", ".htm", ".xhtml"]:
         try:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 soup = BeautifulSoup(f.read(), "html.parser")
-                return soup.get_text()
+                return clean_text(soup.get_text())
         except:
             return None
     if ext == ".xml":
@@ -97,7 +120,7 @@ def parse_smart(file_path):
                     soup = BeautifulSoup(f.read(), "html.parser")
                     for warn in w:
                         if issubclass(warn.category, XMLParsedAsHTMLWarning):
-                            return soup.get_text()
+                            return clean_text(soup.get_text())
             return None
         except:
             return None
@@ -107,7 +130,7 @@ def parse_smart(file_path):
             all_text = []
             for p in doc.paragraphs:
                 all_text.append(p.text)
-            return "\n".join(all_text)
+            return clean_text("\n".join(all_text))
         except:
             return None
     if ext == ".pdf":
@@ -117,7 +140,7 @@ def parse_smart(file_path):
                 pdf_reader = PyPDF2.PdfReader(f)
                 for page in pdf_reader.pages:
                     text_pages.append(page.extract_text() or "")
-            return "\n".join(text_pages)
+            return clean_text("\n".join(text_pages))
         except:
             return None
     code_extensions = {
@@ -129,7 +152,7 @@ def parse_smart(file_path):
     if ext in code_extensions:
         try:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                return remove_code_comments(f.read())
+                return clean_text(remove_code_comments(f.read()))
         except:
             return None
     try:
@@ -138,7 +161,7 @@ def parse_smart(file_path):
             if b'\0' in sample:
                 return None
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-            return remove_code_comments(f.read())
+            return clean_text(remove_code_comments(f.read()))
     except:
         return None
 
@@ -154,7 +177,7 @@ def load_single_json_file(file_path):
                     desc_texts = [d.get("value", "") for d in desc_data]
                     combined = cve_id + " " + " ".join(desc_texts)
                     if combined.strip():
-                        all_texts.append(combined.strip())
+                        all_texts.append(clean_text(combined.strip()))
             elif isinstance(data, dict) and "containers" in data and "cveMetadata" in data and "cna" in data["containers"]:
                 cve_id = data.get("cveMetadata", {}).get("cveId", "")
                 descriptions = data["containers"]["cna"].get("descriptions", [])
@@ -195,14 +218,14 @@ def load_single_json_file(file_path):
                     combined_parts.append("ADP References: " + " | ".join(adp_ref_texts))
                 combined_str = " || ".join(part for part in combined_parts if part)
                 if combined_str.strip():
-                    all_texts.append(combined_str.strip())
+                    all_texts.append(clean_text(combined_str.strip()))
             elif isinstance(data, list):
                 for record in data:
                     cve_id = record.get("cve_id", "")
                     desc = record.get("description", "")
                     text = f"{cve_id} {desc}"
                     if text.strip():
-                        all_texts.append(text.strip())
+                        all_texts.append(clean_text(text.strip()))
     except:
         print(f"WARNING: Could not decode or read JSON file: {file_path}")
     return all_texts
@@ -269,6 +292,26 @@ def fetch_pentest_data(folder=LOCAL_PENTEST_FOLDER):
                 collected_pentests.append(content)
     print(f"Fetched {len(collected_pentests)} pentest entries from '{folder}' folder.")
     return collected_pentests
+
+def load_single_mitre_file(mitre_path):
+    return parse_smart(mitre_path)
+
+def fetch_mitre_attack_data(folder=LOCAL_MITRE_ATTACK_FOLDER):
+    print(f"STEP: Reading MITRE ATT&CK data from local '{folder}' folder in parallel (recursive)...")
+    collected_mitre = []
+    if not os.path.isdir(folder):
+        print(f"WARNING: '{folder}' folder does not exist.")
+        return collected_mitre
+    mitre_files = glob.glob(os.path.join(folder, '**', '*'), recursive=True)
+    mitre_files = [f for f in mitre_files if os.path.isfile(f)]
+    with ThreadPoolExecutor() as executor:
+        future_to_path = {executor.submit(load_single_mitre_file, mf): mf for mf in mitre_files}
+        for future in as_completed(future_to_path):
+            content = future.result()
+            if content:
+                collected_mitre.append(content)
+    print(f"Fetched {len(collected_mitre)} items from '{folder}' folder.")
+    return collected_mitre
 
 def train_subword_tokenizer(all_texts, vocab_size=40000):
     print("STEP: Training subword tokenizer...")
@@ -409,11 +452,15 @@ def train_model(resume=False, retrain=False, save_freq_steps=0):
         subprocess.run(["nvidia-smi"], check=True)
     except:
         print("  -> nvidia-smi not found.")
+    if not os.path.exists(LOCAL_MITRE_ATTACK_FOLDER):
+        print("Downloading MITRE ATT&CK data...")
+        download_mitre_attack(LOCAL_MITRE_ATTACK_FOLDER)
     cve_texts = load_cve_json_files(DATA_JSON_PATH)
     exploit_texts = fetch_exploitdb_exploits(LOCAL_EXPLOITDB_FOLDER)
     pentest_texts = fetch_pentest_data(LOCAL_PENTEST_FOLDER)
-    save_data_in_hierarchy(cve_texts, exploit_texts, pentest_texts)
-    all_texts = exploit_texts + cve_texts + pentest_texts
+    mitre_texts = fetch_mitre_attack_data(LOCAL_MITRE_ATTACK_FOLDER)
+    save_data_in_hierarchy(cve_texts, exploit_texts, pentest_texts, mitre_texts)
+    all_texts = exploit_texts + cve_texts + pentest_texts + mitre_texts
     if not all_texts:
         print("No data to train on.")
         return None, None
@@ -469,7 +516,7 @@ def train_model(resume=False, retrain=False, save_freq_steps=0):
     model.save(MODEL_SAVE_PATH)
     return model, subword_tokenizer
 
-def generate_text(prompt, model, subword_tokenizer, max_gen_length=50, stop_token="[SEP]"):
+def generate_text(prompt, model, subword_tokenizer, max_gen_length=128, stop_token="[SEP]"):
     enc = subword_tokenizer.encode(prompt)
     generated_tokens = tf.Variable(enc.ids, trainable=False, dtype=tf.int32)
     for _ in range(max_gen_length):
@@ -492,7 +539,7 @@ def _apply_presence_penalty(logits, gids, pen):
     return tf.tensor_scatter_nd_sub(logits, scatter_indices, scatter_updates)
 
 def generate_text_with_sampling(prompt, model, subword_tokenizer,
-                                max_gen_length=50, temperature=1.0,
+                                max_gen_length=128, temperature=1.0,
                                 top_k=0, top_p=0.0, stop_token="[SEP]",
                                 presence_penalty=0.0):
     def _apply_temperature(logits, t):
@@ -552,7 +599,7 @@ def main():
     all_prompts = sample_prompts
     print("\n[Testing Sample Prompts]")
     for prompt in all_prompts:
-        g1 = generate_text(prompt, trained_model, subword_tokenizer, 50)
+        g1 = generate_text(prompt, trained_model, subword_tokenizer, 128)
         g2 = generate_text_with_sampling(prompt, trained_model, subword_tokenizer, 128, 0.9, 50, 0.95, presence_penalty=0.5)
         print(f"\nPrompt: {prompt}")
         print("Greedy Generated:", g1)
@@ -563,7 +610,7 @@ def main():
         user_input = input("Your prompt: ").strip()
         if not user_input:
             break
-        g1 = generate_text(user_input, trained_model, subword_tokenizer, 50)
+        g1 = generate_text(user_input, trained_model, subword_tokenizer, 128)
         g2 = generate_text_with_sampling(user_input, trained_model, subword_tokenizer, 128, 0.9, 50, 0.95, presence_penalty=0.5)
         print("Greedy Generated:", g1)
         print("Sampling Generated:", g2)
