@@ -26,25 +26,11 @@ import warnings
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 import PyPDF2
 
-###################################
-# BEGIN: Inlined websites.py
-###################################
-websites_to_test = [
-    "https:/microsoft.com/",
-    "https:/amazon.com/"
-]
-
 sample_prompts = [
     "Describe recent CVE vulnerabilities in detail.",
     "Generate a proof-of-concept exploit for a known vulnerability."
 ]
-###################################
-# END: Inlined websites.py
-###################################
 
-###################################
-# BEGIN: Inlined structured_data_saving.py
-###################################
 def save_data_in_hierarchy(cve_texts, exploit_texts, pentest_texts):
     if not os.path.exists("training_data_json"):
         os.makedirs("training_data_json", exist_ok=True)
@@ -54,20 +40,11 @@ def save_data_in_hierarchy(cve_texts, exploit_texts, pentest_texts):
         json.dump(exploit_texts, f)
     with open(os.path.join("training_data_json", "pentest_texts.json"), "w", encoding="utf-8") as f:
         json.dump(pentest_texts, f)
-###################################
-# END: Inlined structured_data_saving.py
-###################################
 
-###################################
-# BEGIN: Inlined strip_exploitdb_json.py
-###################################
 def strip_exploitdb_json(folder_path):
     pass
-###################################
-# END: Inlined strip_exploitdb_json.py
-###################################
 
-DATA_JSON_PATH = "../cvelistV5/"
+DATA_JSON_PATH = "../unzipped_cves_json/"
 MODEL_SAVE_PATH = "E1json.keras"
 CHECKPOINT_DIR = "checkpoints"
 MAX_LEN = 512
@@ -85,7 +62,6 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--retrain', action='store_true')
     parser.add_argument('--resume', action='store_true')
-    parser.add_argument('--use_googlebot_prompts', action='store_true')
     parser.add_argument('--save_freq', type=int, default=0)
     return parser.parse_args()
 
@@ -294,29 +270,6 @@ def fetch_pentest_data(folder=LOCAL_PENTEST_FOLDER):
     print(f"Fetched {len(collected_pentests)} pentest entries from '{folder}' folder.")
     return collected_pentests
 
-def fetch_googlebot_prompts(n=5):
-    print("STEP: Fetching real prompts via Google Custom Search...")
-    google_api_key = os.environ.get("GOOGLE_API_KEY", None)
-    google_cse_id = os.environ.get("GOOGLE_CSE_ID", None)
-    if not google_api_key or not google_cse_id:
-        raise ValueError("Missing GOOGLE_API_KEY or GOOGLE_CSE_ID.")
-    query = "cyber security vulnerabilities"
-    url = f"https://www.googleapis.com/customsearch/v1?key={google_api_key}&cx={google_cse_id}&q={query}&num={n}"
-    prompts = []
-    try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-        items = data.get("items", [])
-        for item in items:
-            snippet = item.get("snippet", "").strip()
-            if snippet:
-                prompts.append(snippet)
-    except Exception as e:
-        print(f"WARNING: Could not fetch from Google: {e}")
-    print(f"  -> Retrieved {len(prompts)} prompt(s).")
-    return prompts
-
 def train_subword_tokenizer(all_texts, vocab_size=40000):
     print("STEP: Training subword tokenizer...")
     tokenizer = Tokenizer(BPE(unk_token="[UNK]"))
@@ -448,30 +401,6 @@ def train_exploit_generation_model():
     exploit_model.fit(ds_exploits, epochs=2)
     exploit_model.save("ExploitGenModel.keras")
 
-def exploit_googlebot_and_analyze(target_url, model, subword_tokenizer):
-    print(f"STEP: Sending Exploit-Googlebot request to {target_url} ...")
-    headers = {"User-Agent": "Googlebot/2.1"}
-    try:
-        response = requests.get(target_url, headers=headers, timeout=10)
-        print(f"  -> Received response: {response.status_code}")
-        text_to_analyze = response.text[:500]
-        enc = subword_tokenizer.encode(text_to_analyze)
-        prompt_seq = tf.constant([enc.ids], dtype=tf.int32)
-        logits_test = model(prompt_seq)
-        analysis_output = generate_text_with_sampling(
-            prompt=text_to_analyze,
-            model=model,
-            subword_tokenizer=subword_tokenizer,
-            max_gen_length=50,
-            temperature=0.8,
-            top_k=40,
-            top_p=0.9
-        )
-        print("\n--- Analysis Output ---")
-        print(analysis_output)
-    except requests.RequestException as e:
-        print(f"  -> HTTP Request failed: {e}")
-
 def train_model(resume=False, retrain=False, save_freq_steps=0):
     if retrain and os.path.exists(TRAINING_DATA_DIR):
         shutil.rmtree(TRAINING_DATA_DIR)
@@ -592,14 +521,11 @@ def generate_text_with_sampling(prompt, model, subword_tokenizer,
         logits = _top_k_filter(logits, top_k)
         logits = _top_p_filter(logits, top_p)
         probs = tf.nn.softmax(logits, axis=-1)
-
-        # 80% chance to pick the greedy token, 20% to sample
         if tf.random.uniform([]) < 0.8:
             next_token_id = tf.argmax(probs, axis=-1, output_type=tf.int32)
         else:
             next_token_id = tf.random.categorical(probs, 1, dtype=tf.int32)
             next_token_id = tf.squeeze(next_token_id, axis=0)
-
         generated_tokens = tf.concat([generated_tokens, next_token_id], axis=0)
         if next_token_id.numpy() == subword_tokenizer.token_to_id(stop_token):
             break
@@ -622,25 +548,27 @@ def main():
         if trained_model is None or subword_tokenizer is None:
             print("No model or tokenizer could be loaded.")
             return
-    dynamic_prompts = []
-    if args.use_googlebot_prompts:
-        dynamic_prompts = fetch_googlebot_prompts(n=3)
-        print("\n[INFO] Dynamic prompts:")
-        for dp in dynamic_prompts:
-            print("  -", dp)
-    all_prompts = sample_prompts + dynamic_prompts
+
+    all_prompts = sample_prompts
+    print("\n[Testing Sample Prompts]")
     for prompt in all_prompts:
         g1 = generate_text(prompt, trained_model, subword_tokenizer, 50)
-        g2 = generate_text_with_sampling(
-            prompt, trained_model, subword_tokenizer,
-            128, 0.9, 50, 0.95, presence_penalty=0.5
-        )
+        g2 = generate_text_with_sampling(prompt, trained_model, subword_tokenizer, 128, 0.9, 50, 0.95, presence_penalty=0.5)
         print(f"\nPrompt: {prompt}")
         print("Greedy Generated:", g1)
         print("Sampling Generated:", g2)
+
+    print("\n[Now you can enter your own prompts. Press enter on an empty line to exit.]")
+    while True:
+        user_input = input("Your prompt: ").strip()
+        if not user_input:
+            break
+        g1 = generate_text(user_input, trained_model, subword_tokenizer, 50)
+        g2 = generate_text_with_sampling(user_input, trained_model, subword_tokenizer, 128, 0.9, 50, 0.95, presence_penalty=0.5)
+        print("Greedy Generated:", g1)
+        print("Sampling Generated:", g2)
+
     train_exploit_generation_model()
-    for w in websites_to_test:
-        exploit_googlebot_and_analyze(w, trained_model, subword_tokenizer)
 
 if __name__ == "__main__":
     main()
