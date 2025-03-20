@@ -25,7 +25,6 @@ import warnings
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 import PyPDF2
 
-# Enable GPU optimizations
 physical_gpus = tf.config.list_physical_devices('GPU')
 for gpu in physical_gpus:
     tf.config.experimental.set_memory_growth(gpu, True)
@@ -38,14 +37,18 @@ local_mitre_attack_folder = os.path.join(local_dir, "MITRE_ATTACK")
 local_nvd_folder = os.path.join(local_dir, "NVD")
 local_owasp_wstg_folder = os.path.join(local_dir, "OWASP_WSTG")
 local_code_dataset_folder = os.path.join(local_dir, "large_code_dataset")
-local_bigcode_dataset_folder = os.path.join(local_dir, "bigcode_dataset")
-local_openwebtext_folder = os.path.join(local_dir, "openwebtext")
+local_alt_code_dataset_folder = os.path.join(local_dir, "thealgorithms_dataset")
+local_bigcode_folder = os.path.join(local_dir, "bigcode_dataset")
+local_codenet_folder = os.path.join(local_dir, "project_codenet_dataset")
+
+# New large cybersecurity dataset
+local_exploit_db_folder = os.path.join(local_dir, "exploit_db_dataset")
 
 data_json_path = os.path.join(local_dir, "cvelistV5")
-model_save_path = os.path.join(local_dir, "E1json.keras")
+model_save_path = os.path.join(local_dir, "E2json.keras")
 checkpoint_dir = os.path.join(local_dir, "checkpoints")
 training_data_dir = os.path.join(local_dir, "training_data_json")
-tokenizer_path = os.path.join(local_dir, "tokenizer.json")
+tokenizer_path = os.path.join(local_dir, "E2tokenizer.json")
 
 max_len = 512
 batch_size = 12
@@ -129,16 +132,6 @@ def download_nvd_data(target_folder=local_nvd_folder):
         except zipfile.BadZipFile:
             os.remove(local_zip)
 
-def download_openwebtext(target_folder=local_openwebtext_folder):
-    if not os.path.exists(target_folder):
-        os.makedirs(target_folder, exist_ok=True)
-    repo_path = os.path.join(target_folder, "openwebtext")
-    if not os.path.exists(repo_path):
-        try:
-            subprocess.run(["git", "clone", "https://github.com/Skylion007/OpenWebTextCorpus.git", "openwebtext"], cwd=target_folder, check=True)
-        except subprocess.CalledProcessError as e:
-            print(f"WARNING: Could not clone the OpenWebText repository due to an error: {e}")
-
 def download_codesearchnet_dataset(target_folder=local_code_dataset_folder):
     if not os.path.exists(target_folder):
         os.makedirs(target_folder, exist_ok=True)
@@ -149,15 +142,42 @@ def download_codesearchnet_dataset(target_folder=local_code_dataset_folder):
         except subprocess.CalledProcessError as e:
             print(f"WARNING: Could not clone the repository due to an error: {e}")
 
-def download_bigcode_dataset(target_folder=local_bigcode_dataset_folder):
+def download_thealgorithms_dataset(target_folder=local_alt_code_dataset_folder):
     if not os.path.exists(target_folder):
         os.makedirs(target_folder, exist_ok=True)
-    repo_path = os.path.join(target_folder, "the-stack")
+    repo_path = os.path.join(target_folder, "Python")
     if not os.path.exists(repo_path):
         try:
-            subprocess.run(["git", "clone", "https://github.com/bigcode-project/the-stack", "the-stack"], cwd=target_folder, check=True)
+            subprocess.run(["git", "clone", "https://github.com/TheAlgorithms/Python", "Python"], cwd=target_folder, check=True)
         except subprocess.CalledProcessError as e:
-            print(f"WARNING: Could not clone the repository due to an error: {e}")
+            print(f"WARNING: Could not clone TheAlgorithms Python repository due to an error: {e}")
+
+def download_bigcode_dataset(target_folder=local_bigcode_folder):
+    if not os.path.exists(target_folder):
+        os.makedirs(target_folder, exist_ok=True)
+    if not os.path.exists(os.path.join(target_folder, "bigcode-placeholder")):
+        open(os.path.join(target_folder, "bigcode-placeholder"), 'w').close()
+
+def download_project_codenet_dataset(target_folder=local_codenet_folder):
+    if not os.path.exists(target_folder):
+        os.makedirs(target_folder, exist_ok=True)
+    repo_path = os.path.join(target_folder, "Project_CodeNet")
+    if not os.path.exists(repo_path):
+        try:
+            subprocess.run(["git", "clone", "https://github.com/IBM/Project_CodeNet", "Project_CodeNet"], cwd=target_folder, check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"WARNING: Could not clone Project_CodeNet repository: {e}")
+
+# New dataset
+def download_exploit_db_dataset(target_folder=local_exploit_db_folder):
+    if not os.path.exists(target_folder):
+        os.makedirs(target_folder, exist_ok=True)
+    repo_path = os.path.join(target_folder, "exploitdb")
+    if not os.path.exists(repo_path):
+        try:
+            subprocess.run(["git", "clone", "https://github.com/offensive-security/exploitdb.git", "exploitdb"], cwd=target_folder, check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"WARNING: Could not clone exploitdb repository due to an error: {e}")
 
 def clean_text(text):
     text = re.sub(r"\s+", " ", text)
@@ -400,21 +420,6 @@ def load_nvd_json_files(folder=local_nvd_folder):
     print(f"Fetched {len(nvd_texts)} entries from NVD data at '{folder}'.")
     return nvd_texts
 
-def fetch_openwebtext_data(folder=local_openwebtext_folder):
-    if not os.path.isdir(folder):
-        return []
-    files = glob.glob(os.path.join(folder, '**', '*'), recursive=True)
-    files = [f for f in files if os.path.isfile(f)]
-    data = []
-    with ThreadPoolExecutor() as executor:
-        future_to_path = {executor.submit(parse_smart, fp): fp for fp in files}
-        for future in as_completed(future_to_path):
-            content = future.result()
-            if content:
-                data.append(content)
-    print(f"Fetched {len(data)} items from the OpenWebText dataset.")
-    return data
-
 def fetch_additional_code_data(folder=local_code_dataset_folder):
     if not os.path.isdir(folder):
         return []
@@ -430,7 +435,22 @@ def fetch_additional_code_data(folder=local_code_dataset_folder):
     print(f"Fetched {len(data)} items from the CodeSearchNet dataset.")
     return data
 
-def fetch_bigcode_data(folder=local_bigcode_dataset_folder):
+def fetch_alt_code_data(folder=local_alt_code_dataset_folder):
+    if not os.path.isdir(folder):
+        return []
+    files = glob.glob(os.path.join(folder, '**', '*'), recursive=True)
+    files = [f for f in files if os.path.isfile(f)]
+    data = []
+    with ThreadPoolExecutor() as executor:
+        future_to_path = {executor.submit(parse_smart, fp): fp for fp in files}
+        for future in as_completed(future_to_path):
+            content = future.result()
+            if content:
+                data.append(content)
+    print(f"Fetched {len(data)} items from the TheAlgorithms dataset.")
+    return data
+
+def fetch_bigcode_data(folder=local_bigcode_folder):
     if not os.path.isdir(folder):
         return []
     files = glob.glob(os.path.join(folder, '**', '*'), recursive=True)
@@ -443,6 +463,37 @@ def fetch_bigcode_data(folder=local_bigcode_dataset_folder):
             if content:
                 data.append(content)
     print(f"Fetched {len(data)} items from the BigCode dataset.")
+    return data
+
+def fetch_project_codenet_data(folder=local_codenet_folder):
+    if not os.path.isdir(folder):
+        return []
+    files = glob.glob(os.path.join(folder, '**', '*'), recursive=True)
+    files = [f for f in files if os.path.isfile(f)]
+    data = []
+    with ThreadPoolExecutor() as executor:
+        future_to_path = {executor.submit(parse_smart, fp): fp for fp in files}
+        for future in as_completed(future_to_path):
+            content = future.result()
+            if content:
+                data.append(content)
+    print(f"Fetched {len(data)} items from Project CodeNet dataset.")
+    return data
+
+# Fetch new dataset
+def fetch_exploit_db_data(folder=local_exploit_db_folder):
+    if not os.path.isdir(folder):
+        return []
+    files = glob.glob(os.path.join(folder, '**', '*'), recursive=True)
+    files = [f for f in files if os.path.isfile(f)]
+    data = []
+    with ThreadPoolExecutor() as executor:
+        future_to_path = {executor.submit(parse_smart, fp): fp for fp in files}
+        for future in as_completed(future_to_path):
+            content = future.result()
+            if content:
+                data.append(content)
+    print(f"Fetched {len(data)} items from the Exploit DB dataset.")
     return data
 
 def train_subword_tokenizer(all_texts, vocab_size=40000):
@@ -564,27 +615,28 @@ def train_model(resume=False, retrain=False, save_freq_steps=0):
         print("  -> nvidia-smi not found.")
 
     if not os.path.exists(local_mitre_attack_folder):
-        print("Downloading MITRE ATT&CK data...")
         download_mitre_attack(local_mitre_attack_folder)
-
     if not os.path.exists(local_nvd_folder):
-        print("Downloading NVD data...")
         download_nvd_data(local_nvd_folder)
 
     download_large_pentest_data()
     download_owasp_wstg()
-    download_openwebtext()
-    download_codesearchnet_dataset()
     download_bigcode_dataset()
+    download_codesearchnet_dataset()
+    download_thealgorithms_dataset()
+    download_project_codenet_dataset()
+    download_exploit_db_dataset()
 
     cve_texts = load_cve_json_files(data_json_path)
     pentest_texts = fetch_pentest_data(local_pentest_folder)
     mitre_texts = fetch_mitre_attack_data(local_mitre_attack_folder)
     nvd_texts = load_nvd_json_files(local_nvd_folder)
     owasp_texts = fetch_owasp_wstg_data(local_owasp_wstg_folder)
-    openwebtext_texts = fetch_openwebtext_data(local_openwebtext_folder)
+    bigcode_texts = fetch_bigcode_data(local_bigcode_folder)
     code_data_texts = fetch_additional_code_data(local_code_dataset_folder)
-    bigcode_texts = fetch_bigcode_data(local_bigcode_dataset_folder)
+    alt_code_texts = fetch_alt_code_data(local_alt_code_dataset_folder)
+    codenet_texts = fetch_project_codenet_data(local_codenet_folder)
+    exploit_db_texts = fetch_exploit_db_data(local_exploit_db_folder)
 
     all_cve_texts = cve_texts + nvd_texts
     save_data_in_hierarchy(all_cve_texts, pentest_texts, mitre_texts, owasp_texts)
@@ -594,9 +646,11 @@ def train_model(resume=False, retrain=False, save_freq_steps=0):
         + pentest_texts
         + mitre_texts
         + owasp_texts
-        + openwebtext_texts
-        + code_data_texts
         + bigcode_texts
+        + code_data_texts
+        + alt_code_texts
+        + codenet_texts
+        + exploit_db_texts
     )
 
     if not all_texts:
@@ -635,7 +689,7 @@ def train_model(resume=False, retrain=False, save_freq_steps=0):
         )
 
     initial_epoch = 0
-    if resume:
+    if resume and not retrain:
         existing_ckpts = glob.glob(os.path.join(checkpoint_dir, "ckpt_*.weights.h5"))
         if existing_ckpts:
             def extract_epoch_and_batch(filename):
