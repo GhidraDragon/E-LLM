@@ -27,20 +27,16 @@ python3 -m pip install -r requirements.txt
 
 This one has 3 epochs so it runs comfortably on an RTX 2070 Max-Q Design (nerfed version of the RTX 2070 mobile)
 
-![20250318_101626](https://github.com/user-attachments/assets/bb72818d-1574-4b3a-a5c9-4a403c5f6948)
+So 46M parameter llm1, did what? Useful sampling generation because greedy gets stuck without a presense penalty or etc. (there are other math besides presence penalty which is a flat scaaler penalty from 0 to 1 inclusive 1 being no penalty)
 
-If you're missing the MITRE CVE folder cvelistV5, git clone https://github.com/CVEProject/cvelistV5.git
+![1500x500](https://github.com/user-attachments/assets/396577e9-c9c2-4084-8a02-9ab9064d0362)
 
-If you're missing the exploitdb folder, git clone https://gitlab.com/exploit-database/exploitdb.git
+<img width="1056" alt="image" src="https://github.com/user-attachments/assets/0d073567-5d74-4dfb-9c2a-75b3e53367d5" />
 
-There's either a pentests folder where you place your own insights or exploits for training
+<img width="1066" alt="image" src="https://github.com/user-attachments/assets/fabfa2bd-2942-478e-9ff0-09b79609a2bb" />
 
-I'd also mkdir a Github folder where I clone the repos I enjoy the most, then include those in training, which I'll add for version E2
+Next one is around 160M
 
-There's also gigantic PDFs from MITREATTACK while I'll add, for version E2
+GPT3 by OpenAI had 175B and GPT4 had 1.8T.... Facebook recently released (yes it's open source but their README.md isn't great) a 1B which could be trained on a A100 40GB available on Colab Pro+ (WOW) and my 46M cost $3 to train. So you have $47 left to do 2, 3, and if you're lucky 4.
 
-
-The one training on my RTX 4070 mobile has 10 epochs, and other upgrades too, including fetching the most recent CVE repos on Github (yes there's basically infinite) and including MITREATTACK etc.
-
-![20250318_102532](https://github.com/user-attachments/assets/d643e327-1cb7-4ca6-bd31-360742619685)
-
+<img width="978" alt="image" src="https://github.com/user-attachments/assets/685b6704-2767-4344-b939-a59a1c175fbc" />
