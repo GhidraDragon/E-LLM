@@ -99,9 +99,12 @@ def download_mitre_attack(target_folder=local_mitre_attack_folder):
         for chunk in r.iter_content(chunk_size=8192):
             if chunk:
                 f.write(chunk)
-    with zipfile.ZipFile(zip_path, 'r') as zf:
-        zf.extractall(target_folder)
-    os.remove(zip_path)
+    try:
+        with zipfile.ZipFile(zip_path, 'r') as zf:
+            zf.extractall(target_folder)
+    except zipfile.BadZipFile:
+        print(f"WARNING: The file {zip_path} is not a valid zip file or may be corrupted. Deleting it.")
+        os.remove(zip_path)
 
 def download_nvd_data(target_folder=local_nvd_folder):
     if not os.path.exists(target_folder):
@@ -114,8 +117,12 @@ def download_nvd_data(target_folder=local_nvd_folder):
                 for chunk in r.iter_content(chunk_size=8192):
                     if chunk:
                         f.write(chunk)
-        with zipfile.ZipFile(local_zip, 'r') as zf:
-            zf.extractall(target_folder)
+        try:
+            with zipfile.ZipFile(local_zip, 'r') as zf:
+                zf.extractall(target_folder)
+        except zipfile.BadZipFile:
+            print(f"WARNING: The file {local_zip} is not a valid zip file or may be corrupted. Deleting it.")
+            os.remove(local_zip)
 
 def download_wikitext_103(target_folder=local_wikitext_folder):
     if not os.path.exists(target_folder):
@@ -128,9 +135,14 @@ def download_wikitext_103(target_folder=local_wikitext_folder):
             for chunk in r.iter_content(chunk_size=8192):
                 if chunk:
                     f.write(chunk)
-        with zipfile.ZipFile(zip_path, 'r') as zf:
-            zf.extractall(target_folder)
-        os.remove(zip_path)
+        try:
+            with zipfile.ZipFile(zip_path, 'r') as zf:
+                zf.extractall(target_folder)
+        except zipfile.BadZipFile:
+            print(f"WARNING: The file {zip_path} is not a valid zip file or may be corrupted. Deleting it.")
+            os.remove(zip_path)
+        else:
+            os.remove(zip_path)
 
 def download_additional_code_dataset(target_folder=local_code_dataset_folder):
     if not os.path.exists(target_folder):
