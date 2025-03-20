@@ -27,7 +27,7 @@ python3 -m pip install -r requirements.txt
 
 This one has 3 epochs so it runs comfortably on an RTX 2070 Max-Q Design (nerfed version of the RTX 2070 mobile)
 
-So 46M parameter llm1, did what? Useful sampling generation because greedy gets stuck without a presense penalty or etc. (there are other math besides presence penalty which is a flat scaaler penalty from 0 to 1 inclusive 1 being no penalty)
+So 46M parameter llm1, did what? Useful sampling generation because greedy gets stuck without a presense penalty or etc. (there are other math besides presence penalty which is a flat scalar penalty from 0 to 1 inclusive 1 being no penalty)
 
 ![1500x500](https://github.com/user-attachments/assets/396577e9-c9c2-4084-8a02-9ab9064d0362)
 
