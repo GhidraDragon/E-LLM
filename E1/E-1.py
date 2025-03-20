@@ -26,26 +26,69 @@ import warnings
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 import PyPDF2
 
-###################################
-# BEGIN: Inlined websites.py
-###################################
-websites_to_test = [
-    "https:/microsoft.com/",
-    "https:/amazon.com/"
-]
-
 sample_prompts = [
     "Describe recent CVE vulnerabilities in detail.",
     "Generate a proof-of-concept exploit for a known vulnerability."
 ]
-###################################
-# END: Inlined websites.py
-###################################
 
-###################################
-# BEGIN: Inlined structured_data_saving.py
-###################################
-def save_data_in_hierarchy(cve_texts, exploit_texts, pentest_texts):
+NVD_FEED_URLS = [
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2002.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2003.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2004.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2005.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2006.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2007.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2008.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2009.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2010.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2011.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2012.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2013.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2014.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2015.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2016.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2017.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2018.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2019.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2020.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2021.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2022.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2023.json.zip"
+]
+
+def download_mitre_attack(target_folder="../MITRE_ATTACK"):
+    if not os.path.exists(target_folder):
+        os.makedirs(target_folder, exist_ok=True)
+    url = "https://github.com/mitre/cti/archive/refs/heads/master.zip"
+    zip_path = os.path.join(target_folder, "mitre_attack.zip")
+    r = requests.get(url, stream=True)
+    with open(zip_path, 'wb') as f:
+        for chunk in r.iter_content(chunk_size=8192):
+            if chunk:
+                f.write(chunk)
+    with zipfile.ZipFile(zip_path, 'r') as zf:
+        zf.extractall(target_folder)
+    os.remove(zip_path)
+
+def download_nvd_data(target_folder="../NVD"):
+    if not os.path.exists(target_folder):
+        os.makedirs(target_folder, exist_ok=True)
+    for url in NVD_FEED_URLS:
+        local_zip = os.path.join(target_folder, os.path.basename(url))
+        if not os.path.exists(local_zip):
+            r = requests.get(url, stream=True)
+            with open(local_zip, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+        with zipfile.ZipFile(local_zip, 'r') as zf:
+            zf.extractall(target_folder)
+
+def clean_text(text):
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+def save_data_in_hierarchy(cve_texts, exploit_texts, pentest_texts, mitre_texts):
     if not os.path.exists("training_data_json"):
         os.makedirs("training_data_json", exist_ok=True)
     with open(os.path.join("training_data_json", "cve_texts.json"), "w", encoding="utf-8") as f:
@@ -54,20 +97,13 @@ def save_data_in_hierarchy(cve_texts, exploit_texts, pentest_texts):
         json.dump(exploit_texts, f)
     with open(os.path.join("training_data_json", "pentest_texts.json"), "w", encoding="utf-8") as f:
         json.dump(pentest_texts, f)
-###################################
-# END: Inlined structured_data_saving.py
-###################################
+    with open(os.path.join("training_data_json", "mitre_texts.json"), "w", encoding="utf-8") as f:
+        json.dump(mitre_texts, f)
 
-###################################
-# BEGIN: Inlined strip_exploitdb_json.py
-###################################
 def strip_exploitdb_json(folder_path):
     pass
-###################################
-# END: Inlined strip_exploitdb_json.py
-###################################
 
-DATA_JSON_PATH = "../cvelistV5/"
+DATA_JSON_PATH = "../unzipped_cves_json/"
 MODEL_SAVE_PATH = "E1json.keras"
 CHECKPOINT_DIR = "checkpoints"
 MAX_LEN = 512
@@ -80,12 +116,13 @@ NUM_LAYERS = 10
 LOCAL_EXPLOITDB_FOLDER = "../exploitdb"
 LOCAL_PENTEST_FOLDER = "../pentests"
 TRAINING_DATA_DIR = "training_data_json"
+LOCAL_MITRE_ATTACK_FOLDER = "../MITRE_ATTACK"
+LOCAL_NVD_FOLDER = "../NVD"
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--retrain', action='store_true')
     parser.add_argument('--resume', action='store_true')
-    parser.add_argument('--use_googlebot_prompts', action='store_true')
     parser.add_argument('--save_freq', type=int, default=0)
     return parser.parse_args()
 
@@ -99,18 +136,20 @@ def parse_smart(file_path):
     size = os.path.getsize(file_path)
     if size == 0:
         return None
+    if size > 500 * 1024 * 1024:
+        return None
     ext = os.path.splitext(file_path)[1].lower()
     if ext == ".json":
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
-                return json.dumps(json.load(f))
+                return clean_text(json.dumps(json.load(f)))
         except:
             return None
     if ext in [".html", ".htm", ".xhtml"]:
         try:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 soup = BeautifulSoup(f.read(), "html.parser")
-                return soup.get_text()
+                return clean_text(soup.get_text())
         except:
             return None
     if ext == ".xml":
@@ -121,7 +160,7 @@ def parse_smart(file_path):
                     soup = BeautifulSoup(f.read(), "html.parser")
                     for warn in w:
                         if issubclass(warn.category, XMLParsedAsHTMLWarning):
-                            return soup.get_text()
+                            return clean_text(soup.get_text())
             return None
         except:
             return None
@@ -131,7 +170,7 @@ def parse_smart(file_path):
             all_text = []
             for p in doc.paragraphs:
                 all_text.append(p.text)
-            return "\n".join(all_text)
+            return clean_text("\n".join(all_text))
         except:
             return None
     if ext == ".pdf":
@@ -141,7 +180,7 @@ def parse_smart(file_path):
                 pdf_reader = PyPDF2.PdfReader(f)
                 for page in pdf_reader.pages:
                     text_pages.append(page.extract_text() or "")
-            return "\n".join(text_pages)
+            return clean_text("\n".join(text_pages))
         except:
             return None
     code_extensions = {
@@ -153,7 +192,7 @@ def parse_smart(file_path):
     if ext in code_extensions:
         try:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                return remove_code_comments(f.read())
+                return clean_text(remove_code_comments(f.read()))
         except:
             return None
     try:
@@ -162,7 +201,7 @@ def parse_smart(file_path):
             if b'\0' in sample:
                 return None
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-            return remove_code_comments(f.read())
+            return clean_text(remove_code_comments(f.read()))
     except:
         return None
 
@@ -178,7 +217,7 @@ def load_single_json_file(file_path):
                     desc_texts = [d.get("value", "") for d in desc_data]
                     combined = cve_id + " " + " ".join(desc_texts)
                     if combined.strip():
-                        all_texts.append(combined.strip())
+                        all_texts.append(clean_text(combined.strip()))
             elif isinstance(data, dict) and "containers" in data and "cveMetadata" in data and "cna" in data["containers"]:
                 cve_id = data.get("cveMetadata", {}).get("cveId", "")
                 descriptions = data["containers"]["cna"].get("descriptions", [])
@@ -219,14 +258,14 @@ def load_single_json_file(file_path):
                     combined_parts.append("ADP References: " + " | ".join(adp_ref_texts))
                 combined_str = " || ".join(part for part in combined_parts if part)
                 if combined_str.strip():
-                    all_texts.append(combined_str.strip())
+                    all_texts.append(clean_text(combined_str.strip()))
             elif isinstance(data, list):
                 for record in data:
                     cve_id = record.get("cve_id", "")
                     desc = record.get("description", "")
                     text = f"{cve_id} {desc}"
                     if text.strip():
-                        all_texts.append(text.strip())
+                        all_texts.append(clean_text(text.strip()))
     except:
         print(f"WARNING: Could not decode or read JSON file: {file_path}")
     return all_texts
@@ -294,28 +333,42 @@ def fetch_pentest_data(folder=LOCAL_PENTEST_FOLDER):
     print(f"Fetched {len(collected_pentests)} pentest entries from '{folder}' folder.")
     return collected_pentests
 
-def fetch_googlebot_prompts(n=5):
-    print("STEP: Fetching real prompts via Google Custom Search...")
-    google_api_key = os.environ.get("GOOGLE_API_KEY", None)
-    google_cse_id = os.environ.get("GOOGLE_CSE_ID", None)
-    if not google_api_key or not google_cse_id:
-        raise ValueError("Missing GOOGLE_API_KEY or GOOGLE_CSE_ID.")
-    query = "cyber security vulnerabilities"
-    url = f"https://www.googleapis.com/customsearch/v1?key={google_api_key}&cx={google_cse_id}&q={query}&num={n}"
-    prompts = []
-    try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-        items = data.get("items", [])
-        for item in items:
-            snippet = item.get("snippet", "").strip()
-            if snippet:
-                prompts.append(snippet)
-    except Exception as e:
-        print(f"WARNING: Could not fetch from Google: {e}")
-    print(f"  -> Retrieved {len(prompts)} prompt(s).")
-    return prompts
+def load_single_mitre_file(mitre_path):
+    return parse_smart(mitre_path)
+
+def fetch_mitre_attack_data(folder=LOCAL_MITRE_ATTACK_FOLDER):
+    print(f"STEP: Reading MITRE ATT&CK data from local '{folder}' folder in parallel (recursive)...")
+    collected_mitre = []
+    if not os.path.isdir(folder):
+        print(f"WARNING: '{folder}' folder does not exist.")
+        return collected_mitre
+    mitre_files = glob.glob(os.path.join(folder, '**', '*'), recursive=True)
+    mitre_files = [f for f in mitre_files if os.path.isfile(f)]
+    with ThreadPoolExecutor() as executor:
+        future_to_path = {executor.submit(load_single_mitre_file, mf): mf for mf in mitre_files}
+        for future in as_completed(future_to_path):
+            content = future.result()
+            if content:
+                collected_mitre.append(content)
+    print(f"Fetched {len(collected_mitre)} items from '{folder}' folder.")
+    return collected_mitre
+
+def load_nvd_json_files(folder=LOCAL_NVD_FOLDER):
+    if not os.path.isdir(folder):
+        print(f"WARNING: '{folder}' folder does not exist.")
+        return []
+    nvd_json_files = glob.glob(os.path.join(folder, '*.json'))
+    nvd_texts = []
+    with ThreadPoolExecutor() as executor:
+        futures = {executor.submit(load_single_json_file, jf): jf for jf in nvd_json_files}
+        for future in as_completed(futures):
+            try:
+                file_texts = future.result()
+                nvd_texts.extend(file_texts)
+            except Exception as e:
+                pass
+    print(f"Fetched {len(nvd_texts)} entries from NVD data at '{folder}'.")
+    return nvd_texts
 
 def train_subword_tokenizer(all_texts, vocab_size=40000):
     print("STEP: Training subword tokenizer...")
@@ -448,30 +501,6 @@ def train_exploit_generation_model():
     exploit_model.fit(ds_exploits, epochs=2)
     exploit_model.save("ExploitGenModel.keras")
 
-def exploit_googlebot_and_analyze(target_url, model, subword_tokenizer):
-    print(f"STEP: Sending Exploit-Googlebot request to {target_url} ...")
-    headers = {"User-Agent": "Googlebot/2.1"}
-    try:
-        response = requests.get(target_url, headers=headers, timeout=10)
-        print(f"  -> Received response: {response.status_code}")
-        text_to_analyze = response.text[:500]
-        enc = subword_tokenizer.encode(text_to_analyze)
-        prompt_seq = tf.constant([enc.ids], dtype=tf.int32)
-        logits_test = model(prompt_seq)
-        analysis_output = generate_text_with_sampling(
-            prompt=text_to_analyze,
-            model=model,
-            subword_tokenizer=subword_tokenizer,
-            max_gen_length=50,
-            temperature=0.8,
-            top_k=40,
-            top_p=0.9
-        )
-        print("\n--- Analysis Output ---")
-        print(analysis_output)
-    except requests.RequestException as e:
-        print(f"  -> HTTP Request failed: {e}")
-
 def train_model(resume=False, retrain=False, save_freq_steps=0):
     if retrain and os.path.exists(TRAINING_DATA_DIR):
         shutil.rmtree(TRAINING_DATA_DIR)
@@ -480,11 +509,20 @@ def train_model(resume=False, retrain=False, save_freq_steps=0):
         subprocess.run(["nvidia-smi"], check=True)
     except:
         print("  -> nvidia-smi not found.")
+    if not os.path.exists(LOCAL_MITRE_ATTACK_FOLDER):
+        print("Downloading MITRE ATT&CK data...")
+        download_mitre_attack(LOCAL_MITRE_ATTACK_FOLDER)
+    if not os.path.exists(LOCAL_NVD_FOLDER):
+        print("Downloading NVD data...")
+        download_nvd_data(LOCAL_NVD_FOLDER)
     cve_texts = load_cve_json_files(DATA_JSON_PATH)
     exploit_texts = fetch_exploitdb_exploits(LOCAL_EXPLOITDB_FOLDER)
     pentest_texts = fetch_pentest_data(LOCAL_PENTEST_FOLDER)
-    save_data_in_hierarchy(cve_texts, exploit_texts, pentest_texts)
-    all_texts = exploit_texts + cve_texts + pentest_texts
+    mitre_texts = fetch_mitre_attack_data(LOCAL_MITRE_ATTACK_FOLDER)
+    nvd_texts = load_nvd_json_files(LOCAL_NVD_FOLDER)
+    all_cve_texts = cve_texts + nvd_texts
+    save_data_in_hierarchy(all_cve_texts, exploit_texts, pentest_texts, mitre_texts)
+    all_texts = exploit_texts + all_cve_texts + pentest_texts + mitre_texts
     if not all_texts:
         print("No data to train on.")
         return None, None
@@ -540,7 +578,7 @@ def train_model(resume=False, retrain=False, save_freq_steps=0):
     model.save(MODEL_SAVE_PATH)
     return model, subword_tokenizer
 
-def generate_text(prompt, model, subword_tokenizer, max_gen_length=50, stop_token="[SEP]"):
+def generate_text(prompt, model, subword_tokenizer, max_gen_length=128, stop_token="[SEP]"):
     enc = subword_tokenizer.encode(prompt)
     generated_tokens = tf.Variable(enc.ids, trainable=False, dtype=tf.int32)
     for _ in range(max_gen_length):
@@ -563,19 +601,22 @@ def _apply_presence_penalty(logits, gids, pen):
     return tf.tensor_scatter_nd_sub(logits, scatter_indices, scatter_updates)
 
 def generate_text_with_sampling(prompt, model, subword_tokenizer,
-                                max_gen_length=50, temperature=1.0,
+                                max_gen_length=128, temperature=1.0,
                                 top_k=0, top_p=0.0, stop_token="[SEP]",
                                 presence_penalty=0.0):
     def _apply_temperature(logits, t):
-        if not t or t <= 0: return logits
+        if not t or t <= 0:
+            return logits
         return logits / t
     def _top_k_filter(logits, k):
-        if k <= 0: return logits
+        if k <= 0:
+            return logits
         v, _ = tf.math.top_k(logits, k=k)
         m = v[:, -1]
         return tf.where(logits < tf.expand_dims(m, axis=-1), tf.ones_like(logits)*-1e10, logits)
     def _top_p_filter(logits, p):
-        if p <= 0 or p > 1: return logits
+        if p <= 0 or p > 1:
+            return logits
         sorted_logits = tf.sort(logits, direction='DESCENDING', axis=-1)
         cdf = tf.cumsum(tf.nn.softmax(sorted_logits, axis=-1), axis=-1)
         cutoff_index = tf.reduce_sum(tf.cast(cdf <= p, tf.int32), axis=-1) - 1
@@ -592,14 +633,11 @@ def generate_text_with_sampling(prompt, model, subword_tokenizer,
         logits = _top_k_filter(logits, top_k)
         logits = _top_p_filter(logits, top_p)
         probs = tf.nn.softmax(logits, axis=-1)
-
-        # 80% chance to pick the greedy token, 20% to sample
         if tf.random.uniform([]) < 0.8:
             next_token_id = tf.argmax(probs, axis=-1, output_type=tf.int32)
         else:
             next_token_id = tf.random.categorical(probs, 1, dtype=tf.int32)
             next_token_id = tf.squeeze(next_token_id, axis=0)
-
         generated_tokens = tf.concat([generated_tokens, next_token_id], axis=0)
         if next_token_id.numpy() == subword_tokenizer.token_to_id(stop_token):
             break
@@ -622,25 +660,24 @@ def main():
         if trained_model is None or subword_tokenizer is None:
             print("No model or tokenizer could be loaded.")
             return
-    dynamic_prompts = []
-    if args.use_googlebot_prompts:
-        dynamic_prompts = fetch_googlebot_prompts(n=3)
-        print("\n[INFO] Dynamic prompts:")
-        for dp in dynamic_prompts:
-            print("  -", dp)
-    all_prompts = sample_prompts + dynamic_prompts
+    all_prompts = sample_prompts
+    print("\n[Testing Sample Prompts]")
     for prompt in all_prompts:
-        g1 = generate_text(prompt, trained_model, subword_tokenizer, 50)
-        g2 = generate_text_with_sampling(
-            prompt, trained_model, subword_tokenizer,
-            128, 0.9, 50, 0.95, presence_penalty=0.5
-        )
+        g1 = generate_text(prompt, trained_model, subword_tokenizer, 128)
+        g2 = generate_text_with_sampling(prompt, trained_model, subword_tokenizer, 128, 0.9, 50, 0.95, presence_penalty=0.5)
         print(f"\nPrompt: {prompt}")
         print("Greedy Generated:", g1)
         print("Sampling Generated:", g2)
+    print("\n[Now you can enter your own prompts. Press enter on an empty line to exit.]")
+    while True:
+        user_input = input("Your prompt: ").strip()
+        if not user_input:
+            break
+        g1 = generate_text(user_input, trained_model, subword_tokenizer, 128)
+        g2 = generate_text_with_sampling(user_input, trained_model, subword_tokenizer, 128, 0.9, 50, 0.95, presence_penalty=0.5)
+        print("Greedy Generated:", g1)
+        print("Sampling Generated:", g2)
     train_exploit_generation_model()
-    for w in websites_to_test:
-        exploit_googlebot_and_analyze(w, trained_model, subword_tokenizer)
 
 if __name__ == "__main__":
     main()
