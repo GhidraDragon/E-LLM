@@ -31,7 +31,6 @@ So 46M parameter llm1, did what? Useful sampling generation because greedy gets 
 
 ![1500x500](https://github.com/user-attachments/assets/396577e9-c9c2-4084-8a02-9ab9064d0362)
 
-<img width="1056" alt="image" src="https://github.com/user-attachments/assets/0d073567-5d74-4dfb-9c2a-75b3e53367d5" />
 
 <img width="1066" alt="image" src="https://github.com/user-attachments/assets/fabfa2bd-2942-478e-9ff0-09b79609a2bb" />
 
