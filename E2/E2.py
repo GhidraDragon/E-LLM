@@ -49,9 +49,28 @@ ff_dim = 1280
 num_layers = 12
 
 NVD_FEED_URLS = [
-    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2023.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2002.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2003.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2004.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2005.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2006.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2007.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2008.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2009.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2010.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2011.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2012.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2013.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2014.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2015.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2016.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2017.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2018.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2019.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2020.json.zip",
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2021.json.zip",
     "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2022.json.zip",
-    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2021.json.zip"
+    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-2023.json.zip"
 ]
 
 def clone_repositories():
@@ -725,7 +744,21 @@ def main():
     sample_prompts = [
         "Explain the impact of CVE-2021-34527:",
         "How to mitigate known vulnerabilities in web applications:",
+        "Discuss effective techniques for preventing ransomware:",
+        "Outline strategies for secure code reviews:",
+        "Explore the fundamentals of zero-trust networking:",
+        "Explain best practices for email phishing defenses:",
+        "Detail methods for incident response planning:",
+        "Compare common types of SQL injection attacks:",
+        "Discuss encryption standards for data in transit:",
+        "Summarize how to conduct a vulnerability assessment:",
+        "Analyze the role of AI in cybersecurity:",
+        "Explain the concept of network segmentation:",
+        "Provide guidelines for secure Docker container management:",
+        "Discuss ways to ensure compliance with GDPR:",
+        "Detail the difference between black-box and white-box penetration testing:"
     ]
+    
     print("\n[Testing Sample Prompts]")
     for prompt in sample_prompts:
         print(f"\nPrompt: {prompt}")
